@@ -34,7 +34,7 @@ app.use(express.static(__dirname + '/public'));
 app.get('/', isAuthenticated,
 function(req, res) {
   console.log('get /: ', req.method, req.url, req.cookies);
-  res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
+  // res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
   res.render('index');
 
 });
@@ -66,14 +66,17 @@ app.post('/signup', function(req, res) {
 
   // some error checking to see if userame is in teh database
   // find better way to make cookies
-  User.create({
+  new User ({
     username: username,
     password: password,
     cookie: 'chocolate-chip'
   })
-  .then(function(newUser) {
+  .save().then(function(newUser) {
+    console.log('new user created:', newUser);
     res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
-    res.render('index');
+    res.redirect('/');
+  }).catch(function(err) {
+    console.log('Error', err);
   });
 
 
@@ -120,9 +123,10 @@ app.post('/login',
 
     new User({username: username}).fetch().then(function(found) {
       if (found) {
-        res.render('index');
+        res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
+        res.redirect('/');
       } else {
-        res.redirect('/signup');
+        res.redirect('/login');
       }
     });
 
