@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-var cookieParser = require('cookie-parser');
+var session = require('express-session');
+// var cookieParser = require('cookie-parser');
 
 
 var db = require('./app/config');
@@ -19,7 +20,8 @@ app.set('view engine', 'ejs');
 app.use(partials());
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
-app.use(cookieParser());
+// app.use(cookieParser('Lebkuchen'));
+app.use(session({ secret: 'Lebkuchen', cookie: {maxAge: 600000}}));
 
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -33,8 +35,6 @@ app.use(express.static(__dirname + '/public'));
 
 app.get('/', isAuthenticated,
 function(req, res) {
-  console.log('get /: ', req.method, req.url, req.cookies);
-  // res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
   res.render('index');
 
 });
@@ -72,9 +72,10 @@ app.post('/signup', function(req, res) {
     cookie: 'chocolate-chip'
   })
   .save().then(function(newUser) {
-    console.log('new user created:', newUser);
-    res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
-    res.redirect('/');
+    req.session.regenerate(function() {
+      req.session.user = username;
+      res.redirect('/');
+    });
   }).catch(function(err) {
     console.log('Error', err);
   });
@@ -115,16 +116,18 @@ function(req, res) {
 });
 
 app.post('/login',
-  function(req, res) {
-    console.log(req.method, req.url, 'login');  
+  function(req, res) { 
 
     var username = req.body.username;
     var password = req.body.password;
 
     new User({username: username}).fetch().then(function(found) {
       if (found) {
-        res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
-        res.redirect('/');
+        req.session.regenerate(function() {
+          req.session.user = username;
+          res.redirect('/');
+        });
+       // res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
       } else {
         res.redirect('/login');
       }
@@ -134,28 +137,35 @@ app.post('/login',
 
   });
 
+app.get('/logout', function(req, res) {
+  req.session.destroy(function() {
+    res.redirect('/');
+  });
+});
+
+
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
 function isAuthenticated (req, res, next) {
-  console.log('funcAuth');
  
-  var userCookie = req.cookies;
-  console.log(req.method, req.url, 'user cookie', userCookie);
+  // var userCookie = req.cookies;
+  // console.log(req.method, req.url, 'user cookie', userCookie);
 
-  if (userCookie === undefined) {
-    res.redirect('/login');
+  if (req.session.user) {
+    next();
   } else {
-
-    new User({cookie: userCookie}).fetch().then(function(found) {
-      console.log('userFound', found);
-      if (found) {
-        console.log('authenticated');
-        next();
-      } else {
-        res.redirect('/login');
-      }
-    });
+    req.session.error = 'Access Denied';
+    res.redirect('/login');
+    // new User({cookie: userCookie}).fetch().then(function(found) {
+    //   console.log('userFound', found);
+    //   if (found) {
+    //     console.log('authenticated');
+    //     next();
+    //   } else {
+    //     res.redirect('/login');
+    //   }
+    // });
   }
 }
 
