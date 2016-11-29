@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser');
 
 
 var db = require('./app/config');
@@ -18,14 +19,24 @@ app.set('view engine', 'ejs');
 app.use(partials());
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
+app.use(cookieParser());
+
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
+// app.all('*', function(req, res, next) {
+//   console.log(req.isAuthenticated);
+//   next();
+// });
+
 app.get('/', 
 function(req, res) {
+  console.log('are there cookies: ', req.cookies);
+  res.cookie('test', 'chocolate-chip', {domain: '127.0.0.1'});
   res.render('index');
+
 });
 
 app.get('/create', 
@@ -75,7 +86,10 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-
+// function isAuthenticated (req, res, next) {
+//   console.log('isAuthenticated:');
+//   // new User({username: })
+// }
 
 
 /************************************************************/
