@@ -83,6 +83,13 @@ function(req, res) {
   });
 });
 
+app.post('/login',
+  function(req, res) {
+
+    console.log(req.body);
+
+  });
+
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
