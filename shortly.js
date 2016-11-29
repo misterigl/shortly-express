@@ -33,7 +33,7 @@ app.use(express.static(__dirname + '/public'));
 
 app.get('/', isAuthenticated,
 function(req, res) {
-  console.log('are there cookies: ', req.cookies);
+  console.log('get /: ', req.method, req.url, req.cookies);
   res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
   res.render('index');
 
@@ -49,6 +49,34 @@ function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
   });
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
+app.post('/signup', function(req, res) {
+
+  var username = req.body.username;
+  var password = req.body.password;
+
+  // some error checking to see if userame is in teh database
+  // find better way to make cookies
+  User.create({
+    username: username,
+    password: password,
+    cookie: 'chocolate-chip'
+  })
+  .then(function(newUser) {
+    res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
+    res.render('index');
+  });
+
+
 });
 
 app.post('/links', 
@@ -85,8 +113,20 @@ function(req, res) {
 
 app.post('/login',
   function(req, res) {
+    console.log(req.method, req.url, 'login');  
 
-    console.log(req.body);
+    var username = req.body.username;
+    var password = req.body.password;
+
+    new User({username: username}).fetch().then(function(found) {
+      if (found) {
+        res.render('index');
+      } else {
+        res.redirect('/signup');
+      }
+    });
+
+    // res.render('index'); 
 
   });
 
@@ -94,19 +134,22 @@ app.post('/login',
 // Write your authentication routes here
 /************************************************************/
 function isAuthenticated (req, res, next) {
+  console.log('funcAuth');
  
-  var userCookie = req.cookies.token;
+  var userCookie = req.cookies;
+  console.log(req.method, req.url, 'user cookie', userCookie);
 
   if (userCookie === undefined) {
-    res.render('login');
+    res.redirect('/login');
   } else {
 
     new User({cookie: userCookie}).fetch().then(function(found) {
+      console.log('userFound', found);
       if (found) {
         console.log('authenticated');
         next();
       } else {
-        res.render('login');
+        res.redirect('/login');
       }
     });
   }
