@@ -68,8 +68,7 @@ app.post('/signup', function(req, res) {
   // find better way to make cookies
   new User ({
     username: username,
-    password: password,
-    cookie: 'chocolate-chip'
+    password: password
   })
   .save().then(function(newUser) {
     req.session.regenerate(function() {
@@ -122,7 +121,8 @@ app.post('/login',
     var password = req.body.password;
 
     new User({username: username}).fetch().then(function(found) {
-      if (found) {
+      console.log('found: ', found);
+      if (found.checkHash(username, password)) {
         req.session.regenerate(function() {
           req.session.user = username;
           res.redirect('/');
@@ -148,24 +148,11 @@ app.get('/logout', function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 function isAuthenticated (req, res, next) {
- 
-  // var userCookie = req.cookies;
-  // console.log(req.method, req.url, 'user cookie', userCookie);
-
   if (req.session.user) {
     next();
   } else {
     req.session.error = 'Access Denied';
     res.redirect('/login');
-    // new User({cookie: userCookie}).fetch().then(function(found) {
-    //   console.log('userFound', found);
-    //   if (found) {
-    //     console.log('authenticated');
-    //     next();
-    //   } else {
-    //     res.redirect('/login');
-    //   }
-    // });
   }
 }
 
