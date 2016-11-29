@@ -31,20 +31,20 @@ app.use(express.static(__dirname + '/public'));
 //   next();
 // });
 
-app.get('/', 
+app.get('/', isAuthenticated,
 function(req, res) {
   console.log('are there cookies: ', req.cookies);
-  res.cookie('test', 'chocolate-chip', {domain: '127.0.0.1'});
+  res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
   res.render('index');
 
 });
 
-app.get('/create', 
+app.get('/create', isAuthenticated,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links', isAuthenticated,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
@@ -86,10 +86,24 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-// function isAuthenticated (req, res, next) {
-//   console.log('isAuthenticated:');
-//   // new User({username: })
-// }
+function isAuthenticated (req, res, next) {
+ 
+  var userCookie = req.cookies.token;
+
+  if (userCookie === undefined) {
+    res.render('login');
+  } else {
+
+    new User({cookie: userCookie}).fetch().then(function(found) {
+      if (found) {
+        console.log('authenticated');
+        next();
+      } else {
+        res.render('login');
+      }
+    });
+  }
+}
 
 
 /************************************************************/
