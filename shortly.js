@@ -3,8 +3,9 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
-// var cookieParser = require('cookie-parser');
-
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+var morgan = require('morgan');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -15,36 +16,52 @@ var Click = require('./app/models/click');
 
 var app = express();
 
+app.use(morgan('dev'));
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
-app.use(partials());
-// Parse JSON (uniform resource locators)
-app.use(bodyParser.json());
-// app.use(cookieParser('Lebkuchen'));
-app.use(session({ secret: 'Lebkuchen', cookie: {maxAge: 600000}}));
 
-// Parse forms (signup/login)
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(partials());
+app.use(bodyParser.json());
+app.use(session({ secret: 'Lebkuchen', resave: true, saveUnitialized: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+console.log('here');
 
+var user = {
+  username: 'test-user',
+  password: 'test-password',
+  id: 1
+};
 
-// app.all('*', function(req, res, next) {
-//   console.log(req.isAuthenticated);
-//   next();
-// });
+passport.use(new LocalStrategy(function(username, password, done) {
+  console.log('LocalStrategy');
+  new User({username: username}).fetch().then(function(found) {
+    if (found) {
+      if (found.checkHash(username, password)) {
+        console.log('in local strategy - found user & password');
+        return done(null, found);
+      }
+     // res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
+    } else {
+      return done (null, false);
+    }
+  });  
+}));
 
-app.get('/', isAuthenticated,
+app.get('/', authenticationMiddleware,
 function(req, res) {
   res.render('index');
 
 });
 
-app.get('/create', isAuthenticated,
+app.get('/create', function(req, res, next) { authenticationMiddleware(req, res, next); },
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', isAuthenticated,
+app.get('/links', function(req, res, next) { authenticationMiddleware(req, res, next); },
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
@@ -115,32 +132,27 @@ function(req, res) {
 });
 
 app.post('/login',
-  function(req, res) { 
+    
+  passport.authenticate('local', {
+    succesRedirect: '/loginSuccess',
+    failureRedirect: '/loginFailure'
+  }), function (req, res) {
+    res.redirect('/');
+  }
 
-    var username = req.body.username;
-    var password = req.body.password;
+);
 
-    new User({username: username}).fetch().then(function(found) {
-      console.log('found: ', found);
-      if (found.checkHash(username, password)) {
-        req.session.regenerate(function() {
-          req.session.user = username;
-          res.redirect('/');
-        });
-       // res.cookie('token', 'chocolate-chip', {domain: '127.0.0.1'});
-      } else {
-        res.redirect('/login');
-      }
-    });
+app.get('/loginFailure', function (req, res, next) {
+  res.redirect('/login');
+});
 
-    // res.render('index'); 
-
-  });
+app.get('/loginSuccess', function (req, res, next) {
+  res.redirect('/');
+});
 
 app.get('/logout', function(req, res) {
-  req.session.destroy(function() {
-    res.redirect('/');
-  });
+  req.logout();
+  res.redirect('/login');
 });
 
 
@@ -155,6 +167,25 @@ function isAuthenticated (req, res, next) {
     res.redirect('/login');
   }
 }
+function authenticationMiddleware (req, res, next) {
+  console.log(req);
+  if (req.isAuthenticated()) {
+    console.log('next');
+    next();
+  } else {
+    console.log('else');
+    res.redirect('/login');
+      
+  }
+}
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+  done(null, user);
+});
 
 
 /************************************************************/
